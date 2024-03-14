@@ -19,15 +19,21 @@ for i=1:N
     end
 end
 Tabu=zeros(N);                      %??????????????????????
-TabuL=round((N*(N-1)/2)^0.5);       %???????????????????
-Ca=300;                             %?????
+TabuL=round(1.2*(N*(N-1)/2)^0.5);       %???????????????????
+Ca=170;                             %?????
 CaNum=zeros(Ca,N);                  %????????
-S0=randperm(N);                     %???????
+%S0=randperm(N);                     %???????
+% ???????????
+S0 = greedyAlgorithm(C);
+
+% ??????????
+S0 = localOptimization(D, S0);
+
 bestsofar=S0;                       %?????
 BestL=Inf;                          %???????
 figure(1);
 p=1;
-Gmax=1000;                          %??????   
+Gmax=1200;                          %??????   
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%??????%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -159,3 +165,70 @@ function total_distance = func1(distance_matrix, solution)
     % Add distance from last city to first city to complete the cycle
     total_distance = total_distance + distance_matrix(solution(N), solution(1));
 end
+
+
+function initialSolution = greedyAlgorithm(C)
+    N = size(C, 1);
+    initialSolution = zeros(1, N);
+    visited = zeros(1, N);
+    
+    % ??????????
+    currentCity = randi(N);
+    initialSolution(1) = currentCity;
+    visited(currentCity) = 1;
+    
+    % ?????????????
+    for i = 2:N
+        minDistance = Inf;
+        nextCity = -1;
+        for j = 1:N
+            if ~visited(j)
+                distance = norm(C(currentCity, :) - C(j, :));
+                if distance < minDistance
+                    minDistance = distance;
+                    nextCity = j;
+                end
+            end
+        end
+        initialSolution(i) = nextCity;
+        visited(nextCity) = 1;
+        currentCity = nextCity;
+    end
+end
+
+function improvedSolution = localOptimization(D, solution)
+    improvedSolution = solution;
+    N = length(solution);
+    improved = true;
+    
+    while improved
+        improved = false;
+        for i = 1:N-1
+            for j = i+1:N
+                newSolution = swap(solution, i, j);
+                if calculateDistance(D, newSolution) < calculateDistance(D, improvedSolution)
+                    improvedSolution = newSolution;
+                    improved = true;
+                end
+            end
+        end
+    end
+end
+
+function newSolution = swap(solution, i, j)
+    newSolution = solution;
+    temp = newSolution(i);
+    newSolution(i) = newSolution(j);
+    newSolution(j) = temp;
+end
+
+function distance = calculateDistance(D, solution)
+    distance = 0;
+    N = length(solution);
+    for i = 1:N-1
+        distance = distance + D(solution(i), solution(i+1));
+    end
+    % Add distance from last city to first city to complete the cycle
+    distance = distance + D(solution(N), solution(1));
+end
+
