@@ -74,20 +74,175 @@ Pm = 0.1; %变异概率
 
 1. **PMX（部分匹配交叉）**：
    - PMX 交叉保留了父代中的部分结构，因此更有可能保留一些良好的性状。
+   
    - PMX 交叉可以有效地保持子代的多样性，因为它将保留父代中的部分路径，而不是完全交换路径。这可能导致更大的收敛速度和更好的全局探索能力。
+   
    - PMX 交叉的主要缺点是它可能会导致一些路径中的重复节点，需要进行额外的处理来解决这些冲突。
+   
+   - ```matlab
+     function [A, B] = PMX(A, B)
+         N = length(A);
+         % 随机选择交叉的两个点
+         p1 = randi([1, N]);
+         p2 = randi([1, N]);
+         while p1 == p2
+             p2 = randi([1, N]);
+         end
+         
+         % 确保 p1 < p2
+         if p1 > p2
+             temp = p1;
+             p1 = p2;
+             p2 = temp;
+         end
+         
+         % PMX交叉
+         tempA = A;
+         tempB = B;
+         A(p1:p2) = tempB(p1:p2);
+         B(p1:p2) = tempA(p1:p2);
+         
+         for i = 1:N
+             if i < p1 || i > p2
+                 % 处理冲突
+                 while ismember(tempA(i), A(p1:p2))
+                     idx = find(tempA == tempB(i));
+                     tempA(i) = tempA(idx);
+                 end
+                 while ismember(tempB(i), B(p1:p2))
+                     idx = find(tempB == tempA(i));
+                     tempB(i) = tempB(idx);
+                 end
+             end
+         end
+     end
+     
+     ```
+   
+     
 2. **OX（顺序交叉）**：
    - OX 交叉是一种简单而有效的交叉方式，它保留了父代的顺序结构，但交换了部分路径。
+   
    - OX 交叉可以保持子代的多样性，但可能会导致一些局部最优解，因为它只是部分地交换了路径，而不是完全重组。
+   
    - OX 交叉相对简单，计算开销较低，但在某些情况下可能会导致较慢的收敛速度。
+   
+   - ```matlab
+     function [A, B] = OX(A, B)
+         N = length(A);
+         % 随机选择交叉的两个点
+         p1 = randi([1, N]);
+         p2 = randi([1, N]);
+         while p1 == p2
+             p2 = randi([1, N]);
+         end
+         
+         % 确保 p1 < p2
+         if p1 > p2
+             temp = p1;
+             p1 = p2;
+             p2 = temp;
+         end
+         
+         % 保留中间部分
+         middleA = A(p1:p2);
+         middleB = B(p1:p2);
+         
+         % 交换非中间部分
+         A(p1:p2) = middleB;
+         B(p1:p2) = middleA;
+         
+         % 处理剩余部分
+         restA = setdiff(B, middleA);
+         restB = setdiff(A, middleB);
+         lenRestA = length(restA);
+         lenRestB = length(restB);
+         if p1 > 1
+             A(1:p1-1) = restA(1:min(p1-1, lenRestA));
+             B(1:p1-1) = restB(1:min(p1-1, lenRestB));
+         end
+         if p2 < N
+             A(p2+1:N) = restA(min(p1, lenRestA)+1:end);
+             B(p2+1:N) = restB(min(p1, lenRestB)+1:end);
+         end
+     end
+     
+     ```
+   
+     
 3. **CX（循环交叉）**：
    - CX 交叉在处理路径问题时是一种常用的方法，它利用了父代中的循环结构。
+   
    - CX 交叉可能会导致较大的子代多样性，因为它试图保留父代中的循环结构。
+   
    - CX 交叉可能会导致一些路径中的重复节点，需要进行额外的处理来解决这些冲突。
+   
+   - ```matlab
+     function [A, B] = CX(A, B)
+         N = length(A);
+         visited = zeros(1, N);
+         cycle = zeros(1, N);
+         idx = 1;
+         
+         while ~all(visited)
+             % 找到下一个循环起点
+             while visited(idx)
+                 idx = idx + 1;
+                 if idx > N
+                     idx = 1;
+                 end
+             end
+             
+             % 开始构建循环
+             start = idx;
+             current = start;
+             while ~visited(current)
+                 cycle(current) = B(current);
+                 visited(current) = 1;
+                 current = find(A == B(current));
+             end
+             
+             % 切换到另一个父代
+             temp = A;
+             A = B;
+             B = temp;
+         end
+         
+         % 保留循环部分，交换剩余部分
+         A(visited) = cycle(visited);
+         B(visited) = cycle(visited);
+     end
+     
+     ```
+   
+     
+
+| PMX                  | OX                  | CX                  |
+| -------------------- | ------------------- | ------------------- |
+| ![](GA3_PMX_OMD.png) | ![](GA3_CX_OMD.png) | ![](GA3_CX_OMD.png) |
+| ![](GA3_PMX_FEC.png) | ![](GA3_OX_FEC.png) | ![](GA3_CX_FEC.png) |
+
+
 
 ## 遗传算法解决0-1背包问题
 
-探讨不同惩罚函数对于算法性能的影响
+探讨不同惩罚函数系数对于算法性能的影响
+
+| afa=1            | afa=2            | afa=5            |
+| ---------------- | ---------------- | ---------------- |
+| ![](GA4FEC1.svg) | ![](GA4FEC2.svg) | ![](GA4FEC5.svg) |
+
+
+
+1. **惩罚函数系数对于收敛速度的影响**：
+   - 较小的惩罚函数系数会导致算法更容易接受违反约束条件的解，因此可能会导致更快的收敛速度。这是因为算法更容易接受新解，并且不太受到约束条件的限制。
+   - 较大的惩罚函数系数会导致算法更严格地遵循约束条件，因此可能会导致更慢的收敛速度。这是因为算法在搜索解空间时更加受限，更难找到满足约束条件的有效解。
+2. **惩罚函数系数对于解的质量的影响**：
+   - 适当的惩罚函数系数可以促使算法在求解时平衡目标函数和约束条件之间的权衡，从而产生更高质量的解。
+   - 如果惩罚函数系数设置不当，可能会导致算法倾向于忽略约束条件，产生违反约束的解，从而降低解的质量。
+3. **惩罚函数系数的选择策略**：
+   - 选择惩罚函数系数应该根据具体问题的特点和约束条件的重要性来确定。如果约束条件非常严格，应该选择较大的惩罚函数系数；如果约束条件相对宽松，可以选择较小的惩罚函数系数。
+   - 在实践中，可以通过尝试不同的惩罚函数系数并对结果进行比较来确定最佳的系数。可以使用交叉验证或者实验设计方法来寻找最优的惩罚函数系数。
 
 ---
 
